@@ -1,25 +1,82 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { playNote, stopNote, getNoteName } from "../utils/audio";
+
+// QWERTY → MIDI mapping (2 oktava üçün nümunə)
+const keyMap = {
+  a: 60, // C4
+  w: 61,
+  s: 62,
+  e: 63,
+  d: 64,
+  f: 65,
+  t: 66,
+  g: 67,
+  y: 68,
+  h: 69,
+  u: 70,
+  j: 71,
+  k: 72, // C5
+  o: 73,
+  l: 74,
+  p: 75,
+  ";": 76,
+};
 
 export default function Piano({ recorder, isRecording }) {
   const [activeNotes, setActiveNotes] = useState(new Set());
+  const [keyPressed, setKeyPressed] = useState({});
 
-  const keys = Array.from({ length: 24 }, (_, i) => 60 + i); // 2 oktava (C4 – B5)
+  const keys = Array.from({ length: 24 }, (_, i) => 60 + i); // C4 → B5
 
-  function handleMouseDown(midi) {
-    const key = playNote(midi);
-    setActiveNotes(new Set([...activeNotes, midi]));
-
+  function noteOn(midi) {
+    playNote(midi);
+    setActiveNotes((prev) => new Set([...prev, midi]));
     if (isRecording) recorder.recordEvent("on", midi, 0.9);
   }
 
-  function handleMouseUp(midi) {
+  function noteOff(midi) {
     stopNote(midi);
-    const newSet = new Set(activeNotes);
-    newSet.delete(midi);
-    setActiveNotes(newSet);
-
+    setActiveNotes((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(midi);
+      return newSet;
+    });
     if (isRecording) recorder.recordEvent("off", midi);
+  }
+
+  // Klaviatura inputları
+  useEffect(() => {
+    function handleKeyDown(e) {
+      const midi = keyMap[e.key.toLowerCase()];
+      if (midi && !keyPressed[e.key]) {
+        setKeyPressed((prev) => ({ ...prev, [e.key]: true }));
+        noteOn(midi);
+      }
+    }
+
+    function handleKeyUp(e) {
+      const midi = keyMap[e.key.toLowerCase()];
+      if (midi) {
+        setKeyPressed((prev) => ({ ...prev, [e.key]: false }));
+        noteOff(midi);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isRecording, keyPressed]);
+
+  // Mouse inputları
+  function handleMouseDown(midi) {
+    noteOn(midi);
+  }
+
+  function handleMouseUp(midi) {
+    noteOff(midi);
   }
 
   return (
