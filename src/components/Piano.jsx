@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { playNote, stopNote, getNoteName } from "../utils/audio";
 
-export default function Piano() {
+export default function Piano({ recorder, isRecording }) {
   const [activeNotes, setActiveNotes] = useState(new Set());
 
   const keys = Array.from({ length: 24 }, (_, i) => 60 + i); // 2 oktava (C4 – B5)
 
   function handleMouseDown(midi) {
-    playNote(midi);
+    const key = playNote(midi);
     setActiveNotes(new Set([...activeNotes, midi]));
+
+    if (isRecording) recorder.recordEvent("on", midi, 0.9);
   }
 
   function handleMouseUp(midi) {
@@ -16,6 +18,8 @@ export default function Piano() {
     const newSet = new Set(activeNotes);
     newSet.delete(midi);
     setActiveNotes(newSet);
+
+    if (isRecording) recorder.recordEvent("off", midi);
   }
 
   return (
